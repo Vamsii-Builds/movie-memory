@@ -67,7 +67,7 @@ describe.skipIf(!url)("Prisma repository (Postgres)", () => {
     expect((await repo.findLatestFact(A, "Inception"))?.content).toBe("a-new");
   });
 
-  it("end to end: 10 concurrent requests -> one OpenAI call, one stored fact", async () => {
+  it("end to end: 10 concurrent requests -> one LLM call, one stored fact", async () => {
     let calls = 0;
     const service = createFactService({
       repo,

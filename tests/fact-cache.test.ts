@@ -64,8 +64,8 @@ describe("60-second cache window", () => {
   });
 });
 
-describe("OpenAI failure handling", () => {
-  it("returns the most recent (stale) fact when OpenAI fails", async () => {
+describe("LLM failure handling", () => {
+  it("returns the most recent (stale) fact when LLM fails", async () => {
     const repo = new InMemoryFactRepo();
     repo.addUser("alice", "Inception");
     const clock = fakeClock();
@@ -81,11 +81,11 @@ describe("OpenAI failure handling", () => {
     expect(repo.locks.size).toBe(0); // lease released even on failure
   });
 
-  it("returns a friendly error when OpenAI fails and there is no cached fact", async () => {
+  it("returns a friendly error when LLM fails and there is no cached fact", async () => {
     const repo = new InMemoryFactRepo();
     repo.addUser("alice", "Inception");
     const generator = stubGenerator(async () => {
-      throw new Error("500 from OpenAI");
+      throw new Error("500 from LLM");
     });
     const service = createFactService({ repo, generator, log: () => {} });
 
@@ -93,12 +93,12 @@ describe("OpenAI failure handling", () => {
     expect(err).toBeInstanceOf(FactServiceError);
     expect(err.code).toBe("GENERATION_FAILED");
     expect(err.status).toBe(503);
-    expect(err.message).not.toMatch(/500 from OpenAI/); // no internals leaked
+    expect(err.message).not.toMatch(/500 from LLM/); // no internals leaked
   });
 });
 
 describe("burst / idempotency protection", () => {
-  it("concurrent requests (multiple tabs) trigger exactly one OpenAI call", async () => {
+  it("concurrent requests (multiple tabs) trigger exactly one LLM call", async () => {
     const repo = new InMemoryFactRepo();
     repo.addUser("alice", "Inception");
     let release!: () => void;
@@ -121,7 +121,7 @@ describe("burst / idempotency protection", () => {
     expect(results.filter((r) => r.source === "generated")).toHaveLength(1);
   });
 
-  it("a waiter that times out returns the older fact instead of calling OpenAI again", async () => {
+  it("a waiter that times out returns the older fact instead of calling LLM again", async () => {
     const repo = new InMemoryFactRepo();
     repo.addUser("alice", "Inception");
     const clock = fakeClock();

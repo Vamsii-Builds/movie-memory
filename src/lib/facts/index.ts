@@ -9,7 +9,7 @@ let service: FactService | undefined;
 
 /**
  * Production wiring: Postgres repository + an LLM fact generator.
- * Claude is used when ANTHROPIC_API_KEY is set, otherwise OpenAI. Both sit
+ * Claude is used when ANTHROPIC_API_KEY is set; otherwise the (untested) OpenAI alternative is used. Both sit
  * behind the same FactGenerator interface, so caching, locking and fallback
  * logic don't depend on the provider.
  */

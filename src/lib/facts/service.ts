@@ -3,18 +3,18 @@
  *
  * Pure business logic. All I/O is injected (repository, generator, clock,
  * sleep) so the cache window, burst protection and failure handling can be
- * unit-tested deterministically without Postgres or OpenAI.
+ * unit-tested deterministically without Postgres or the LLM.
  *
  * Flow for getFactForUser(userId):
  *   1. Look up the user's favorite movie (from the DB, never from the client).
  *   2. If the newest fact for (user, movie) is < 60s old  -> return it ("cache").
  *   3. Try to take the per-user generation lease.
  *        - Won it:  re-check the cache (a peer may have just finished), then
- *                   call OpenAI, store the fact, return it ("generated").
- *                   On OpenAI failure return the newest older fact ("fallback")
+ *                   call the LLM, store the fact, return it ("generated").
+ *                   On the LLM failure return the newest older fact ("fallback")
  *                   or a friendly error if there is none.
  *        - Lost it: another tab/refresh is generating right now. Poll briefly
- *                   for its result instead of calling OpenAI a second time.
+ *                   for its result instead of calling the LLM a second time.
  *   4. Always release the lease when done (it also expires on its own).
  */
 
@@ -45,7 +45,7 @@ export interface FactGenerator {
 /**
  * - cache:     a fact < 60s old was reused
  * - generated: a brand-new fact was created by this request
- * - fallback:  OpenAI failed / was busy, so an older fact is returned
+ * - fallback:  the LLM failed / was busy, so an older fact is returned
  */
 export type FactSource = "cache" | "generated" | "fallback";
 
@@ -70,7 +70,7 @@ export type FactServiceDeps = {
   now?: () => Date;
   sleep?: (ms: number) => Promise<void>;
   cacheTtlMs?: number;
-  /** Must exceed the worst-case OpenAI call time so a live lease never expires mid-call. */
+  /** Must exceed the worst-case the LLM call time so a live lease never expires mid-call. */
   leaseMs?: number;
   /** How long a request that lost the lease waits for the winner's fact. */
   waitForPeerMs?: number;
@@ -131,7 +131,7 @@ export function createFactService(deps: FactServiceDeps) {
       latest = await repo.findLatestFact(userId, movie);
       if (isFresh(latest, now(), cacheTtlMs)) return { fact: latest, source: "cache" };
     }
-    // The peer is slow or failed. Never fire a second OpenAI call; degrade instead.
+    // The peer is slow or failed. Never fire a second the LLM call; degrade instead.
     if (latest) return { fact: latest, source: "fallback" };
     throw new FactServiceError(
       "GENERATION_BUSY",
